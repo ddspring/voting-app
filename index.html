@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>创新委会议投票系统</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 15px;
+    }
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      padding: 25px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    h1 { color: #333; font-size: 20px; text-align: center; margin-bottom: 20px; }
+    h2 { color: #555; font-size: 16px; margin-bottom: 15px; }
+    
+    .form-group { margin-bottom: 15px; }
+    label { display: block; color: #555; font-size: 14px; margin-bottom: 6px; font-weight: 500; }
+    input, select, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 16px;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #667eea; }
+    
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4); }
+    
+    .options { margin: 20px 0; }
+    .option {
+      display: flex;
+      align-items: center;
+      padding: 15px;
+      margin-bottom: 10px;
+      border: 3px solid #e0e0e0;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .option:hover { border-color: #667eea; background: #f8f9ff; }
+    .option.selected { border-color: #667eea; background: #f0f2ff; }
+    .option-icon { font-size: 28px; margin-right: 12px; }
+    .option-text { font-size: 16px; color: #333; }
+    
+    .remark-group { display: none; margin-top: 10px; }
+    .remark-group.show { display: block; }
+    
+    .result-card {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      border-left: 4px solid #667eea;
+    }
+    .result-card.approve { border-left-color: #28a745; }
+    .result-card.reject { border-left-color: #dc3545; }
+    .result-card.conditional { border-left-color: #ffc107; }
+    .result-name { font-weight: 600; color: #333; }
+    .result-option { font-size: 14px; margin-top: 5px; }
+    .result-remark { font-size: 13px; color: #666; margin-top: 5px; font-style: italic; }
+    
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .stat {
+      background: #f8f9fa;
+      padding: 12px 5px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .stat-num { font-size: 24px; font-weight: bold; color: #667eea; }
+    .stat-label { font-size: 11px; color: #888; margin-top: 3px; }
+    
+    .share-box {
+      background: #e8f5e9;
+      padding: 15px;
+      border-radius: 12px;
+      margin-top: 15px;
+    }
+    .share-box h3 { color: #2e7d32; font-size: 14px; margin-bottom: 10px; }
+    .share-link {
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      word-break: break-all;
+      color: #333;
+      border: 1px solid #c8e6c9;
+    }
+    
+    .message {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      text-align: center;
+      font-size: 14px;
+    }
+    .message.success { background: #d4edda; color: #155724; }
+    .message.error { background: #f8d7da; color: #721c24; }
+    
+    .tabs {
+      display: flex;
+      margin-bottom: 20px;
+      background: #f0f0f0;
+      border-radius: 10px;
+      padding: 4px;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #666;
+    }
+    .tab.active { background: white; color: #667eea; font-weight: 600; }
+    
+    .hidden { display: none; }
+    .text-center { text-align: center; }
+    .mt-20 { margin-top: 20px; }
+    .copy-btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="app"></div>
+  </div>
+
+  <script>
+    // 简单路由
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode'); // 'admin' or 'vote'
+    const voteData = params.get('data'); // base64 encoded vote data
+    
+    let state = {
+      topic: '',
+      votes: [],
+      deadline: null,
+      isAdmin: false
+    };
+    
+    // 加载数据
+    function loadState() {
+      if (voteData) {
+        try {
+          const decoded = JSON.parse(atob(voteData));
+          state.topic = decoded.topic;
+          state.votes = decoded.votes || [];
+          state.deadline = decoded.deadline;
+          state.isAdmin = mode === 'admin';
+        } catch (e) {
+          console.error('Invalid data');
+        }
+      }
+    }
+    
+    // 保存数据到localStorage
+    function saveToStorage() {
+      localStorage.setItem('voting_' + getVoteId(), JSON.stringify(state));
+    }
+    
+    function getVoteId() {
+      return btoa(state.topic).substring(0, 8);
+    }
+    
+    // 生成分享链接
+    function generateLinks() {
+      const votePayload = btoa(JSON.stringify({
+        topic: state.topic,
+        votes: state.votes,
+        deadline: state.deadline
+      }));
+      
+      const adminLink = `${window.location.origin}${window.location.pathname}?mode=admin&data=${votePayload}`;
+      const voteLink = `${window.location.origin}${window.location.pathname}?mode=vote&data=${votePayload}`;
+      
+      return { adminLink, voteLink };
+    }
+    
+    // 添加投票
+    function addVote(name, option, remark) {
+      state.votes.push({
+        name,
+        option,
+        remark,
+        time: new Date().toLocaleString('zh-CN')
+      });
+      saveToStorage();
+      return state.votes.length;
+    }
+    
+    // 渲染
+    function render() {
+      const app = document.getElementById('app');
+      
+      if (!mode) {
+        // 首页 - 创建投票
+        app.innerHTML = `
+          <h1>📊 创建投票</h1>
+          <div class="form-group">
+            <label>投票议题</label>
+            <input type="text" id="topic" placeholder="请输入投票议题">
+          </div>
+          <div class="form-group">
+            <label>投票时长</label>
+            <select id="duration">
+              <option value="60">1 小时</option>
+              <option value="120" selected>2 小时</option>
+              <option value="180">3 小时</option>
+              <option value="360">6 小时</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>管理员姓名</label>
+            <input type="text" id="adminName" placeholder="请输入您的姓名">
+          </div>
+          <button class="btn" onclick="createVote()">创建投票</button>
+        `;
+      } else if (mode === 'admin') {
+        // 管理页面
+        const links = generateLinks();
+        const stats = {
+          total: state.votes.length,
+          approve: state.votes.filter(v => v.option === 'approve').length,
+          reject: state.votes.filter(v => v.option === 'reject').length,
+          conditional: state.votes.filter(v => v.option === 'conditional').length
+        };
+        
+        app.innerHTML = `
+          <div class="tabs">
+            <div class="tab active">📊 投票结果</div>
+            <div class="tab" onclick="refreshPage()">🔄 刷新</div>
+          </div>
+          
+          <h1>${state.topic}</h1>
+          
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-num">${stats.total}</div>
+              <div class="stat-label">总票数</div>
+            </div>
+            <div class="stat">
+              <div class="stat-num" style="color:#28a745">${stats.approve}</div>
+              <div class="stat-label">赞成</div>
+            </div>
+            <div class="stat">
+              <div class="stat-num" style="color:#dc3545">${stats.reject}</div>
+              <div class="stat-label">不赞成</div>
+            </div>
+            <div class="stat">
+              <div class="stat-num" style="color:#ffc107">${stats.conditional}</div>
+              <div class="stat-label">有条件</div>
+            </div>
+          </div>
+          
+          <h2>👥 投票详情</h2>
+          ${state.votes.length === 0 ? '<p class="text-center" style="color:#888">暂无投票，等待参与者...</p>' : ''}
+          ${state.votes.map((v, i) => `
+            <div class="result-card ${v.option}">
+              <div class="result-name">${v.name}</div>
+              <div class="result-option">
+                ${v.option === 'approve' ? '✅ 赞成' : v.option === 'reject' ? '❌ 不赞成' : '🔶 有条件赞成'}
+              </div>
+              ${v.remark ? `<div class="result-remark">"${v.remark}"</div>` : ''}
+            </div>
+          `).join('')}
+          
+          <div class="share-box">
+            <h3>🔗 投票链接（发给群友）</h3>
+            <div class="share-link">${links.voteLink}</div>
+            <button class="copy-btn" onclick="copyLink('${links.voteLink}')">📋 复制投票链接</button>
+          </div>
+        `;
+      } else if (mode === 'vote') {
+        // 投票页面
+        app.innerHTML = `
+          <h1>${state.topic}</h1>
+          
+          <div id="message"></div>
+          
+          <div id="votingArea">
+            <div class="form-group">
+              <label>请输入您的姓名</label>
+              <input type="text" id="voterName" placeholder="请输入真实姓名">
+            </div>
+            
+            <h2>请选择您的投票</h2>
+            <div class="options">
+              <div class="option" onclick="selectOption('approve')">
+                <span class="option-icon">✅</span>
+                <span class="option-text">赞成</span>
+              </div>
+              <div class="option" onclick="selectOption('reject')">
+                <span class="option-icon">❌</span>
+                <span class="option-text">不赞成</span>
+              </div>
+              <div class="option" onclick="selectOption('conditional')">
+                <span class="option-icon">🔶</span>
+                <span class="option-text">有条件赞成</span>
+              </div>
+            </div>
+            
+            <div class="remark-group" id="remarkGroup">
+              <label>请说明您的条件（必填）</label>
+              <textarea id="remark" placeholder="请详细说明您的条件..."></textarea>
+            </div>
+            
+            <button class="btn" onclick="submitVote()">提交投票</button>
+          </div>
+          
+          <div id="myVoteArea" class="hidden">
+            <div class="result-card" id="myVote"></div>
+            <p class="text-center mt-20" style="color:#888">感谢您的投票！</p>
+          </div>
+        `;
+      }
+    }
+    
+    let selectedOption = '';
+    
+    function selectOption(opt) {
+      selectedOption = opt;
+      document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
+      event.currentTarget.classList.add('selected');
+      
+      const remarkGroup = document.getElementById('remarkGroup');
+      remarkGroup.classList.toggle('show', opt === 'conditional');
+    }
+    
+    function showMessage(text, type) {
+      const msg = document.getElementById('message');
+      if (msg) msg.innerHTML = `<div class="message ${type}">${text}</div>`;
+    }
+    
+    function submitVote() {
+      const name = document.getElementById('voterName').value.trim();
+      const remark = document.getElementById('remark').value.trim();
+      
+      if (!name) { showMessage('请输入您的姓名', 'error'); return; }
+      if (!selectedOption) { showMessage('请选择一个选项', 'error'); return; }
+      if (selectedOption === 'conditional' && !remark) {
+        showMessage('请填写条件说明', 'error'); return;
+      }
+      
+      const count = addVote(name, selectedOption, remark);
+      
+      // 显示我的投票
+      document.getElementById('votingArea').classList.add('hidden');
+      document.getElementById('myVoteArea').classList.remove('hidden');
+      
+      const optionTexts = {
+        approve: '✅ 赞成',
+        reject: '❌ 不赞成',
+        conditional: '🔶 有条件赞成'
+      };
+      
+      document.getElementById('myVote').innerHTML = `
+        <div class="result-name">${name}</div>
+        <div class="result-option">${optionTexts[selectedOption]}</div>
+        ${remark ? `<div class="result-remark">"${remark}"</div>` : ''}
+      `;
+      
+      showMessage(`投票成功！您是第 ${count} 位投票者`, 'success');
+      
+      // 更新 URL 分享链接
+      const links = generateLinks();
+      document.querySelector('.share-box')?.remove();
+    }
+    
+    function createVote() {
+      const topic = document.getElementById('topic').value.trim();
+      const duration = parseInt(document.getElementById('duration').value);
+      const adminName = document.getElementById('adminName').value.trim();
+      
+      if (!topic) { alert('请输入投票议题'); return; }
+      if (!adminName) { alert('请输入管理员姓名'); return; }
+      
+      state.topic = topic;
+      state.deadline = new Date(Date.now() + duration * 60000).toLocaleString('zh-CN');
+      state.isAdmin = true;
+      state.votes = [];
+      
+      // 添加管理员为第一个投票者
+      addVote(adminName, 'admin', '主持人');
+      
+      saveToStorage();
+      
+      const links = generateLinks();
+      const app = document.getElementById('app');
+      app.innerHTML = `
+        <h1>✅ 投票已创建！</h1>
+        
+        <div class="share-box">
+          <h3>🔗 投票链接（发给群友）</h3>
+          <div class="share-link">${links.voteLink}</div>
+          <button class="copy-btn" onclick="copyLink('${links.voteLink}')">📋 复制投票链接</button>
+        </div>
+        
+        <div class="share-box" style="margin-top:15px; background:#fff3e0;">
+          <h3 style="color:#e65100;">🔑 管理链接（查看所有投票）</h3>
+          <div class="share-link">${links.adminLink}</div>
+          <button class="copy-btn" style="background:#f57c00;" onclick="copyLink('${links.adminLink}')">📋 复制管理链接</button>
+        </div>
+        
+        <p class="text-center mt-20" style="color:#888; font-size:13px;">
+          截止时间：${state.deadline}<br>
+          请将投票链接分享给群友
+        </p>
+        
+        <button class="btn mt-20" onclick="location.href='${links.adminLink}'">📊 查看投票结果</button>
+      `;
+    }
+    
+    function copyLink(link) {
+      navigator.clipboard.writeText(link).then(() => {
+        alert('链接已复制！');
+      }).catch(() => {
+        prompt('请复制链接：', link);
+      });
+    }
+    
+    function refreshPage() {
+      location.reload();
+    }
+    
+    // 初始化
+    loadState();
+    render();
+  </script>
+</body>
+</html>
