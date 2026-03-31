@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>投票 - <%= session.topic %></title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      color: #333;
+      font-size: 22px;
+      margin-bottom: 10px;
+    }
+    .header .deadline {
+      color: #666;
+      font-size: 14px;
+    }
+    .header .deadline.urgent {
+      color: #e74c3c;
+      font-weight: bold;
+    }
+    .user-info {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 25px;
+    }
+    .user-info label {
+      display: block;
+      color: #555;
+      font-size: 14px;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    .user-info input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    .user-info input:focus {
+      outline: none;
+      border-color: #11998e;
+    }
+    .options {
+      margin-bottom: 25px;
+    }
+    .option {
+      display: block;
+      padding: 18px 20px;
+      margin-bottom: 12px;
+      border: 3px solid #e0e0e0;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+    }
+    .option:hover {
+      border-color: #11998e;
+      background: #f0fdf9;
+    }
+    .option.selected {
+      border-color: #11998e;
+      background: #f0fdf9;
+    }
+    .option .icon {
+      font-size: 24px;
+      margin-right: 12px;
+    }
+    .option .text {
+      font-size: 18px;
+      color: #333;
+      font-weight: 500;
+    }
+    .option input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+    }
+    .remark-group {
+      margin-bottom: 25px;
+      display: none;
+    }
+    .remark-group.show {
+      display: block;
+    }
+    .remark-group label {
+      display: block;
+      color: #555;
+      font-size: 14px;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    .remark-group textarea {
+      width: 100%;
+      padding: 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 15px;
+      min-height: 100px;
+      resize: vertical;
+      font-family: inherit;
+    }
+    .remark-group textarea:focus {
+      outline: none;
+      border-color: #11998e;
+    }
+    .btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(17, 153, 142, 0.4);
+    }
+    .btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .message {
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .my-vote {
+      background: #e8f5e9;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+    .my-vote .title {
+      color: #2e7d32;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .my-vote .option-text {
+      color: #333;
+      font-size: 16px;
+    }
+    .my-vote .remark-text {
+      color: #666;
+      font-size: 14px;
+      margin-top: 8px;
+      font-style: italic;
+    }
+    .expired-notice {
+      background: #fff3cd;
+      color: #856404;
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1><%= session.topic %></h1>
+      <div class="deadline <%= isExpired ? 'urgent' : '' %>">
+        <% if (isExpired) { %>
+          ⚠️ 投票已截止
+        <% } else { %>
+          ⏰ 截止时间: <%= session.deadline %>
+        <% } %>
+      </div>
+    </div>
+    
+    <div id="message"></div>
+    
+    <% if (isExpired) { %>
+      <div class="expired-notice">
+        此投票已于 <%= session.deadline %> 截止，感谢您的参与！
+      </div>
+    <% } else { %>
+      <div id="votingArea">
+        <div class="user-info">
+          <label>请输入您的姓名</label>
+          <input type="text" id="voterName" placeholder="请输入真实姓名" maxlength="20">
+        </div>
+        
+        <div class="options">
+          <label class="option" onclick="selectOption('approve')">
+            <input type="radio" name="option" value="approve">
+            <span class="icon">✅</span>
+            <span class="text">赞成</span>
+          </label>
+          
+          <label class="option" onclick="selectOption('reject')">
+            <input type="radio" name="option" value="reject">
+            <span class="icon">❌</span>
+            <span class="text">不赞成</span>
+          </label>
+          
+          <label class="option" onclick="selectOption('conditional')">
+            <input type="radio" name="option" value="conditional">
+            <span class="icon">🔶</span>
+            <span class="text">有条件赞成</span>
+          </label>
+        </div>
+        
+        <div class="remark-group" id="remarkGroup">
+          <label>请说明您的条件（必填）</label>
+          <textarea id="remark" placeholder="请详细说明您赞成的条件..."></textarea>
+        </div>
+        
+        <button class="btn" id="submitBtn" onclick="submitVote()">提交投票</button>
+      </div>
+    <% } %>
+    
+    <div id="myVoteInfo" style="display: none;"></div>
+  </div>
+
+  <script>
+    const voteId = '<%= session.vote_id %>';
+    let openid = localStorage.getItem('vote_openid_' + voteId) || '';
+    let selectedOption = '';
+    
+    // 生成唯一ID
+    if (!openid) {
+      openid = 'user_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+      localStorage.setItem('vote_openid_' + voteId, openid);
+    }
+    
+    // 页面加载时检查是否已投票
+    checkMyVote();
+    
+    // 检查我的投票
+    async function checkMyVote() {
+      try {
+        const res = await fetch(`/api/my-vote/${voteId}/${openid}`);
+        const data = await res.json();
+        
+        if (data.voted) {
+          showMyVote(data);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    
+    // 显示我的投票
+    function showMyVote(data) {
+      const optionTexts = {
+        'approve': '✅ 赞成',
+        'reject': '❌ 不赞成',
+        'conditional': '🔶 有条件赞成'
+      };
+      
+      document.getElementById('votingArea').style.display = 'none';
+      
+      const myVoteInfo = document.getElementById('myVoteInfo');
+      myVoteInfo.style.display = 'block';
+      myVoteInfo.innerHTML = `
+        <div class="my-vote">
+          <div class="title">您已投票</div>
+          <div class="option-text">${optionTexts[data.option]}</div>
+          ${data.remark ? `<div class="remark-text">备注: ${data.remark}</div>` : ''}
+          <div style="margin-top: 10px; color: #888; font-size: 12px;">投票时间: ${data.createdAt}</div>
+        </div>
+      `;
+    }
+    
+    // 选择选项
+    function selectOption(option) {
+      selectedOption = option;
+      
+      // 更新UI
+      document.querySelectorAll('.option').forEach(el => {
+        el.classList.remove('selected');
+      });
+      document.querySelector(`input[value="${option}"]`).closest('.option').classList.add('selected');
+      
+      // 显示/隐藏备注输入
+      const remarkGroup = document.getElementById('remarkGroup');
+      if (option === 'conditional') {
+        remarkGroup.classList.add('show');
+      } else {
+        remarkGroup.classList.remove('show');
+      }
+    }
+    
+    // 提交投票
+    async function submitVote() {
+      const nickname = document.getElementById('voterName').value.trim();
+      const remark = document.getElementById('remark').value.trim();
+      
+      if (!nickname) {
+        showMessage('请输入您的姓名', 'error');
+        return;
+      }
+      
+      if (!selectedOption) {
+        showMessage('请选择一个投票选项', 'error');
+        return;
+      }
+      
+      if (selectedOption === 'conditional' && !remark) {
+        showMessage('请填写有条件赞成的条件说明', 'error');
+        return;
+      }
+      
+      // 保存姓名
+      localStorage.setItem('vote_name_' + voteId, nickname);
+      
+      try {
+        const res = await fetch('/api/vote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            voteId,
+            openid,
+            nickname,
+            option: selectedOption,
+            remark
+          })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+          showMessage('投票成功！', 'success');
+          setTimeout(() => {
+            checkMyVote();
+          }, 1000);
+        } else {
+          showMessage(data.message, 'error');
+          if (data.message === '您已经投过票了') {
+            checkMyVote();
+          }
+        }
+      } catch (e) {
+        showMessage('提交失败，请重试', 'error');
+      }
+    }
+    
+    function showMessage(text, type) {
+      const msg = document.getElementById('message');
+      msg.innerHTML = `<div class="message ${type}">${text}</div>`;
+    }
+    
+    // 恢复之前输入的姓名
+    const savedName = localStorage.getItem('vote_name_' + voteId);
+    if (savedName) {
+      document.getElementById('voterName').value = savedName;
+    }
+  </script>
+</body>
+</html>
