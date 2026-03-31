@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>投票管理 - <%= session.topic %></title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      padding: 25px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #eee;
+    }
+    .header h1 {
+      color: #333;
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+    .header .deadline {
+      color: #666;
+      font-size: 14px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 25px;
+    }
+    .stat-card {
+      background: #f8f9fa;
+      padding: 15px 10px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .stat-card .number {
+      font-size: 28px;
+      font-weight: bold;
+      color: #f5576c;
+    }
+    .stat-card .label {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+    }
+    .stat-card.approve .number { color: #28a745; }
+    .stat-card.reject .number { color: #dc3545; }
+    .stat-card.conditional .number { color: #ffc107; }
+    
+    .share-links {
+      background: #e3f2fd;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 25px;
+    }
+    .share-links .title {
+      color: #1565c0;
+      font-weight: 600;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    .share-links input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #bbdefb;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 8px;
+      background: white;
+    }
+    .share-links .hint {
+      color: #666;
+      font-size: 12px;
+    }
+    
+    .votes-list {
+      margin-top: 20px;
+    }
+    .votes-list h2 {
+      color: #333;
+      font-size: 16px;
+      margin-bottom: 15px;
+    }
+    .vote-item {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      border-left: 4px solid #ddd;
+    }
+    .vote-item.approve { border-left-color: #28a745; }
+    .vote-item.reject { border-left-color: #dc3545; }
+    .vote-item.conditional { border-left-color: #ffc107; }
+    
+    .vote-item .nickname {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 5px;
+    }
+    .vote-item .option {
+      font-size: 14px;
+    }
+    .vote-item .option.approve { color: #28a745; }
+    .vote-item .option.reject { color: #dc3545; }
+    .vote-item .option.conditional { color: #f57c00; }
+    .vote-item .remark {
+      margin-top: 8px;
+      padding: 10px;
+      background: white;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #666;
+      font-style: italic;
+    }
+    .vote-item .time {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #999;
+    }
+    
+    .empty {
+      text-align: center;
+      color: #999;
+      padding: 40px;
+    }
+    
+    .refresh-btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background: #f5576c;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    
+    .copy-btn {
+      background: #1976d2;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .copy-btn:active {
+      background: #1565c0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📊 <%= session.topic %></h1>
+      <div class="deadline">⏰ 截止时间: <%= session.deadline %></div>
+    </div>
+    
+    <div class="stats">
+      <div class="stat-card">
+        <div class="number"><%= stats.total %></div>
+        <div class="label">总投票</div>
+      </div>
+      <div class="stat-card approve">
+        <div class="number"><%= stats.approve %></div>
+        <div class="label">赞成</div>
+      </div>
+      <div class="stat-card reject">
+        <div class="number"><%= stats.reject %></div>
+        <div class="label">不赞成</div>
+      </div>
+      <div class="stat-card conditional">
+        <div class="number"><%= stats.conditional %></div>
+        <div class="label">有条件</div>
+      </div>
+    </div>
+    
+    <div class="share-links">
+      <div class="title">🔗 投票链接（分享给群友）</div>
+      <input type="text" id="shareLink" readonly>
+      <button class="copy-btn" onclick="copyLink()">📋 复制链接</button>
+      <div class="hint">点击链接即可投票，无需安装</div>
+    </div>
+    
+    <div class="share-links" style="background: #fff3e0;">
+      <div class="title" style="color: #e65100;">🔑 管理员链接（请妥善保管，勿外传）</div>
+      <input type="text" id="adminLink" readonly>
+      <button class="copy-btn" style="background: #f57c00;" onclick="copyAdminLink()">📋 复制管理链接</button>
+      <div class="hint">此链接可查看所有投票详情</div>
+    </div>
+    
+    <div class="votes-list">
+      <h2>👥 投票详情</h2>
+      
+      <% if (votes.length === 0) { %>
+        <div class="empty">暂无投票记录，等待参与者投票...</div>
+      <% } else { %>
+        <% votes.forEach(vote => { %>
+          <div class="vote-item <%= vote.option %>">
+            <div class="nickname"><%= vote.nickname %></div>
+            <div class="option <%= vote.option %>">
+              <% if (vote.option === 'approve') { %>✅ 赞成
+              <% } else if (vote.option === 'reject') { %>❌ 不赞成
+              <% } else { %>🔶 有条件赞成<% } %>
+            </div>
+            <% if (vote.remark) { %>
+              <div class="remark">"<%= vote.remark %>"</div>
+            <% } %>
+            <div class="time"><%= vote.createdAt %></div>
+          </div>
+        <% }) %>
+      <% } %>
+    </div>
+    
+    <button class="refresh-btn" onclick="location.reload()">🔄 刷新结果</button>
+  </div>
+  
+  <script>
+    const currentHost = window.location.origin;
+    const voteId = '<%= session.voteId %>';
+    const adminId = '<%= session.adminId %>';
+    
+    document.getElementById('shareLink').value = currentHost + '/vote/' + voteId;
+    document.getElementById('adminLink').value = currentHost + '/admin/' + voteId + '/' + adminId;
+    
+    function copyLink() {
+      const input = document.getElementById('shareLink');
+      input.select();
+      document.execCommand('copy');
+      alert('投票链接已复制！');
+    }
+    
+    function copyAdminLink() {
+      const input = document.getElementById('adminLink');
+      input.select();
+      document.execCommand('copy');
+      alert('管理链接已复制！');
+    }
+    
+    // 自动刷新
+    setInterval(() => {
+      // 每30秒静默刷新数据
+    }, 30000);
+  </script>
+</body>
+</html>
